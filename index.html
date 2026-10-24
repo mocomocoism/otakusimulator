@@ -20,7 +20,6 @@
       --theme-dark: #6d28d9;
     }
     html {
-      /* Safari等のステータスバー・オーバースクロール領域も推しカラーに連動 */
       background-color: var(--theme-color);
     }
     body {
@@ -71,23 +70,6 @@
     tbody tr:hover .sticky-col {
       background-color: #f8fafc;
     }
-    .sticky-col-sub {
-      position: sticky;
-      left: 0;
-      z-index: 10;
-      background-color: #f8fafc;
-    }
-    /* 最下行（合計行）は行全体・固定セルともに推しカラー（淡色）で統一 */
-    .grand-total-row,
-    .grand-total-row td {
-      background-color: var(--theme-light) !important;
-    }
-    .sticky-col-theme {
-      position: sticky;
-      left: 0;
-      z-index: 10;
-      background-color: var(--theme-light) !important;
-    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -128,7 +110,7 @@
     <!-- Left Column: Settings -->
     <div class="lg:col-span-5 space-y-5">
 
-      <!-- 0. 推しカラー設定（HTMLベタ書き形式） -->
+      <!-- 0. 推しカラー設定 -->
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-2.5">
           <i class="fa-solid fa-palette theme-text"></i>
@@ -228,7 +210,7 @@
         </div>
       </section>
 
-      <!-- 3. 交通手段 & 予約スタイル（HTMLベタ書き形式） -->
+      <!-- 3. 交通手段 & 予約スタイル -->
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-bold text-slate-800 flex items-center gap-2">
@@ -312,7 +294,7 @@
         </div>
       </section>
 
-      <!-- 4. 宿泊設定 & グレード（HTMLベタ書き形式） -->
+      <!-- 4. 宿泊設定 & グレード -->
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
         <div class="flex items-center justify-between mb-2.5">
           <h2 class="font-bold text-slate-800 flex items-center gap-2">
@@ -542,11 +524,12 @@
           <button type="button" onclick="resetCityOverrides()" class="text-xs text-slate-500 hover:text-slate-800 underline">個別調整をリセット</button>
         </div>
 
+        <!-- テーブル本体（スクロール対応） -->
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-200">
-                <th class="py-2.5 px-3 whitespace-nowrap sticky-col-sub shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">公演都市</th>
+                <th class="py-2.5 px-3 whitespace-nowrap sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">公演都市</th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap" title="1公演あたりのチケット単価（個別変更可）">チケット単価</th>
                 <th class="py-2.5 px-2 whitespace-nowrap">移動手段</th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap">公演数</th>
@@ -561,37 +544,42 @@
             <tbody id="cityTableBody" class="divide-y divide-slate-100 text-xs">
               <!-- Populated by JS -->
             </tbody>
-            <tfoot id="cityTableFoot" class="bg-slate-50/90 border-t-2 border-slate-200 text-xs hidden">
-              <!-- Row 1: 都市別費用の小計 -->
-              <tr class="border-b border-slate-200/70">
-                <td colspan="6" class="py-2.5 px-3 font-bold text-slate-700 sticky-col-sub shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                  都市別費用の小計
-                  <span class="text-[10px] font-normal text-slate-500 ml-1.5">（全都市のチケット代・交通費・宿泊費）</span>
-                </td>
-                <td id="footTicketSum" class="py-2.5 px-2.5 text-right font-semibold text-pink-600 whitespace-nowrap">¥0</td>
-                <td id="footTransportSum" class="py-2.5 px-2.5 text-right font-semibold text-blue-600 whitespace-nowrap">¥0</td>
-                <td id="footHotelSum" class="py-2.5 px-2.5 text-right font-semibold text-amber-600 whitespace-nowrap">¥0</td>
-                <td id="footCitySubtotal" class="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">¥0</td>
-              </tr>
-              <!-- Row 2: 雑費 -->
-              <tr class="border-b border-slate-200/70">
-                <td colspan="9" class="py-2.5 px-3 font-bold text-slate-700 sticky-col-sub shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                  雑費
-                  <span id="footExtraDetail" class="text-[10px] font-normal text-slate-500 ml-1.5">（グッズ代・現地食費の合計）</span>
-                </td>
-                <td id="footExtraSum" class="py-2.5 px-3 text-right font-bold text-emerald-600 whitespace-nowrap">¥0</td>
-              </tr>
-              <!-- Row 3: 合計（行全体の全セルが推しカラーの淡色に連動） -->
-              <tr class="grand-total-row transition-colors duration-300">
-                <td colspan="9" class="py-3 px-3 font-black text-slate-800 text-sm sticky-col-theme shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors duration-300">
-                  合計
-                  <span class="text-[11px] font-normal text-slate-600 ml-1.5">（都市別費用の小計 ＋ 雑費）</span>
-                </td>
-                <td id="footGrandTotal" class="py-3 px-3 text-right font-black theme-text text-sm whitespace-nowrap transition-colors duration-300">¥0</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
+
+        <!-- テーブル直下：横スクロールしない独立した集計サマリーエリア -->
+        <div id="tableSummaryArea" class="hidden bg-slate-50/90 border-t-2 border-slate-200 text-xs px-4 py-3 space-y-2">
+          <!-- 1. 都市別費用の小計 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+            <div class="font-bold text-slate-700 flex items-center gap-2">
+              <span>都市別費用の小計</span>
+              <span class="text-[10px] font-normal text-slate-500">（全都市のチケット代・交通費・宿泊費）</span>
+            </div>
+            <div class="flex items-center gap-3 text-right font-semibold text-xs">
+              <span class="text-pink-600">チケ: <span id="footTicketSum">¥0</span></span>
+              <span class="text-blue-600">交通: <span id="footTransportSum">¥0</span></span>
+              <span class="text-amber-600">宿泊: <span id="footHotelSum">¥0</span></span>
+              <span class="font-bold text-slate-800 text-sm pl-2 border-l border-slate-300" id="footCitySubtotal">¥0</span>
+            </div>
+          </div>
+          <!-- 2. 雑費 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+            <div class="font-bold text-slate-700">
+              <span>雑費</span>
+              <span id="footExtraDetail" class="text-[10px] font-normal text-slate-500 ml-1.5">（グッズ代・現地食費の合計）</span>
+            </div>
+            <div class="font-bold text-emerald-600 text-sm" id="footExtraSum">¥0</div>
+          </div>
+          <!-- 3. 合計（推しカラー淡色連動） -->
+          <div class="flex flex-wrap items-center justify-between gap-2 theme-light-bg px-3 py-2.5 rounded-xl transition-colors duration-300">
+            <div class="font-black text-slate-800 text-sm">
+              <span>合計</span>
+              <span class="text-[11px] font-normal text-slate-600 ml-1.5">（都市別費用の小計 ＋ 雑費）</span>
+            </div>
+            <div class="font-black theme-text text-base transition-colors duration-300" id="footGrandTotal">¥0</div>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -753,7 +741,6 @@
 
     const DRINK_FEE_UNIT = 600;
 
-    // 出発地のデフォルトを「東京都 (tokyo)」に設定
     let state = {
       origin: 'tokyo',
       selectedCities: new Set(),
@@ -821,13 +808,16 @@
       state.themeLight = light;
       document.documentElement.style.setProperty('--theme-color', color);
       document.documentElement.style.setProperty('--theme-light', light);
-
-      // iPadやiPhoneのSafari等のURLバー（ステータスバー領域）の色も動的に変更
-      const metaTheme = document.getElementById('metaThemeColor');
-      if (metaTheme) {
-        metaTheme.setAttribute('content', color);
-      }
       document.documentElement.style.backgroundColor = color;
+
+      // iPad Safari等のURLバー（theme-color）を確実に更新するためのメタタグ再生成処理
+      const oldMeta = document.getElementById('metaThemeColor');
+      if (oldMeta) oldMeta.remove();
+      const newMeta = document.createElement('meta');
+      newMeta.name = 'theme-color';
+      newMeta.content = color;
+      newMeta.id = 'metaThemeColor';
+      document.head.appendChild(newMeta);
 
       if (barChart && pieChart) {
         recalc();
@@ -1188,16 +1178,16 @@
 
     function renderTable(rowsData, totalTransport, totalHotel, totalTickets, citySubtotalSum, goodsBudget, foodPerTrip, cityCount, totalExtra, grandTotal) {
       const tbody = document.getElementById('cityTableBody');
-      const tfoot = document.getElementById('cityTableFoot');
+      const summaryArea = document.getElementById('tableSummaryArea');
       tbody.innerHTML = '';
 
       if (rowsData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">参戦する公演都市を選択すると、ここに都市別の明細が表示されます</td></tr>';
-        tfoot.classList.add('hidden');
+        summaryArea.classList.add('hidden');
         return;
       }
 
-      tfoot.classList.remove('hidden');
+      summaryArea.classList.remove('hidden');
 
       rowsData.forEach(r => {
         const tr = document.createElement('tr');
@@ -1246,7 +1236,7 @@
         tbody.appendChild(tr);
       });
 
-      // フッター3行の集計反映
+      // 集計サマリーエリアへの値反映
       document.getElementById('footTicketSum').textContent = '¥' + totalTickets.toLocaleString();
       document.getElementById('footTransportSum').textContent = '¥' + totalTransport.toLocaleString();
       document.getElementById('footHotelSum').textContent = '¥' + totalHotel.toLocaleString();
