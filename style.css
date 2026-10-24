@@ -1,0 +1,56 @@
+:root {
+      --theme-color: #8b5cf6;
+      --theme-light: #f3e8ff;
+      --theme-dark: #6d28d9;
+    }
+    html {
+      background-color: var(--theme-color);
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .theme-bg { background-color: var(--theme-color); }
+    .theme-text { color: var(--theme-color); }
+    .theme-border { border-color: var(--theme-color); }
+    .theme-light-bg { background-color: var(--theme-light); }
+
+    /* トグルスイッチの推しカラー連動 */
+    .theme-toggle:checked + .toggle-track {
+      background-color: var(--theme-color);
+    }
+
+    /* 参戦都市チップ（サイズ完全統一） */
+    .city-chip {
+      height: 44px;
+      transition: all 0.15s ease;
+    }
+    .city-chip.active {
+      background-color: var(--theme-color);
+      color: #ffffff;
+      border-color: var(--theme-color);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 選択肢カードのアクティブ状態 */
+    .option-card.active {
+      border-color: var(--theme-color);
+      background-color: var(--theme-light);
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      accent-color: var(--theme-color);
+    }
+
+    /* スマホ等での横スクロール時に「公演都市」列を左端に固定 */
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background-color: #ffffff;
+    }
+    tbody tr:hover .sticky-col {
+      background-color: #f8fafc;
+    }
