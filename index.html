@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#8b5cf6" id="metaThemeColor">
+  <title>推し活 遠征費用シミュレーター</title>
+  <meta property="og:title" content="推し活 遠征費用シミュレーター">
+  <meta property="og:description" content="全国ツアー・ライブ遠征の交通費・宿泊費・チケット代・月々の目標貯金額を一括試算できるシミュレーター">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --theme-color: #8b5cf6;
+      --theme-light: #f3e8ff;
+      --theme-dark: #6d28d9;
+    }
+    html {
+      background-color: var(--theme-color);
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .theme-bg { background-color: var(--theme-color); }
+    .theme-text { color: var(--theme-color); }
+    .theme-border { border-color: var(--theme-color); }
+    .theme-light-bg { background-color: var(--theme-light); }
+
+    /* トグルスイッチの推しカラー連動 */
+    .theme-toggle:checked + .toggle-track {
+      background-color: var(--theme-color);
+    }
+
+    /* 参戦都市チップ（サイズ完全統一） */
+    .city-chip {
+      height: 44px;
+      transition: all 0.15s ease;
+    }
+    .city-chip.active {
+      background-color: var(--theme-color);
+      color: #ffffff;
+      border-color: var(--theme-color);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 選択肢カードのアクティブ状態 */
+    .option-card.active {
+      border-color: var(--theme-color);
+      background-color: var(--theme-light);
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      accent-color: var(--theme-color);
+    }
+
+    /* スマホ等での横スクロール時に「公演都市」列を左端に固定 */
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background-color: #ffffff;
+    }
+    tbody tr:hover .sticky-col {
+      background-color: #f8fafc;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="theme-bg text-white shadow-md sticky top-0 z-30 transition-colors duration-300">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <i class="fa-solid fa-plane-departure text-xl"></i>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight leading-tight">推し活 遠征費用シミュレーター</h1>
+          <p class="text-xs opacity-90 hidden sm:block">全国ツアー・ライブ遠征の交通費・宿泊費・チケット代を一括試算</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="resetAll()" class="bg-white/20 hover:bg-white/30 text-white text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm transition flex items-center gap-1.5" title="すべて初期状態に戻す">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span class="hidden sm:inline">リセット</span>
+        </button>
+        <button onclick="openSummaryModal()" class="bg-white/20 hover:bg-white/30 text-white text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm transition flex items-center gap-1.5">
+          <i class="fa-solid fa-camera"></i>
+          <span>スクショ用カード</span>
+        </button>
+        <button onclick="copyShareText()" class="bg-white text-slate-800 hover:bg-slate-100 text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full shadow-sm transition flex items-center gap-1.5">
+          <i class="fa-solid fa-share-nodes theme-text"></i>
+          <span>結果をコピー</span>
+        </button>
+        <button onclick="copyShareUrl()" title="設定URLをコピー" class="bg-white/20 hover:bg-white/30 text-white text-xs md:text-sm font-semibold p-2 rounded-full backdrop-blur-sm transition">
+          <i class="fa-solid fa-link"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+
+    <!-- Left Column: Settings -->
+    <div class="lg:col-span-5 space-y-5">
+
+      <!-- 0. 推しカラー設定 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-2.5">
+          <i class="fa-solid fa-palette theme-text"></i>
+          <span>推しカラー設定</span>
+        </h2>
+        <div class="flex items-center gap-2.5 flex-wrap" id="colorPalette">
+          <button type="button" onclick="setTheme('#10b981', '#d1fae5')" class="w-6 h-6 rounded-full bg-emerald-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="グリーン"></button>
+          <button type="button" onclick="setTheme('#06b6d4', '#cffafe')" class="w-6 h-6 rounded-full bg-cyan-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="ライトブルー"></button>
+          <button type="button" onclick="setTheme('#3b82f6', '#dbeafe')" class="w-6 h-6 rounded-full bg-blue-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="ブルー"></button>
+          <button type="button" onclick="setTheme('#8b5cf6', '#f3e8ff')" class="w-6 h-6 rounded-full bg-violet-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="パープル"></button>
+          <button type="button" onclick="setTheme('#ec4899', '#fce7f3')" class="w-6 h-6 rounded-full bg-pink-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="ピンク"></button>
+          <button type="button" onclick="setTheme('#ef4444', '#fee2e2')" class="w-6 h-6 rounded-full bg-red-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="レッド"></button>
+          <button type="button" onclick="setTheme('#f97316', '#ffedd5')" class="w-6 h-6 rounded-full bg-orange-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="オレンジ"></button>
+          <button type="button" onclick="setTheme('#eab308', '#fef9c3')" class="w-6 h-6 rounded-full bg-yellow-500 ring-2 ring-offset-1 ring-transparent hover:scale-110 transition" title="イエロー"></button>
+        </div>
+      </section>
+
+      <!-- 1. 基本情報 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <h2 class="font-bold text-slate-800 flex items-center gap-2 mb-3">
+          <span class="w-6 h-6 rounded-full theme-bg text-white text-xs flex items-center justify-center shrink-0">1</span>
+          <span>基本情報</span>
+        </h2>
+
+        <div class="space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-semibold text-slate-500">ツアー名・イベント名</label>
+              <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">任意</span>
+            </div>
+            <input type="text" id="tourTitle" value="" oninput="scheduleRecalc()" placeholder="例：LIVE TOUR 2027" class="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:border-transparent" style="--tw-ring-color: var(--theme-color);">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 items-end">
+            <div class="flex flex-col justify-end">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-semibold text-slate-500 truncate">あなたの出発地</label>
+                <span class="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.2 rounded font-semibold shrink-0 ml-1">必須</span>
+              </div>
+              <select id="originSelect" onchange="onOriginChange()" class="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none">
+                <option value="">選択してください</option>
+                <option value="tokyo" selected>東京都</option>
+                <option value="kanagawa">神奈川県</option>
+                <option value="chiba">千葉県</option>
+                <option value="saitama">埼玉県</option>
+                <option value="osaka">大阪府</option>
+                <option value="aichi">愛知県</option>
+                <option value="fukuoka">福岡県</option>
+                <option value="hokkaido">北海道</option>
+                <option value="miyagi">宮城県</option>
+                <option value="hiroshima">広島県</option>
+              </select>
+            </div>
+            <div class="flex flex-col justify-end">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-semibold text-slate-500 truncate">ベースチケット代(1公演)</label>
+                <span class="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.2 rounded font-semibold shrink-0 ml-1">必須</span>
+              </div>
+              <div class="relative">
+                <input type="number" id="ticketPrice" value="10000" placeholder="10000" step="500" min="0" oninput="scheduleRecalc()" class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-300 text-sm focus:outline-none">
+                <span class="absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 pointer-events-none">円</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-1">
+            <label class="inline-flex items-center cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 w-full">
+              <input type="checkbox" id="drinkFeeToggle" onchange="onDrinkToggle()" class="sr-only peer theme-toggle">
+              <div class="toggle-track w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all relative shrink-0 transition-colors"></div>
+              <span class="ml-2.5 text-xs font-semibold text-slate-700 leading-tight">
+                会場のワンドリンク代を含める<br>
+                <span class="text-[11px] text-slate-500 font-normal">（+600円 / 公演）</span>
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 公演都市の選択 -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full theme-bg text-white text-xs flex items-center justify-center shrink-0">2</span>
+            <span>参戦する公演都市を選択</span>
+          </h2>
+          <span class="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.2 rounded font-semibold">必須</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mb-2.5">
+          <button type="button" onclick="selectPreset('5dome')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">5大都市を一括選択</button>
+          <button type="button" onclick="selectPreset('8city')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition">主要8都市を一括選択</button>
+          <button type="button" onclick="selectPreset('clear')" class="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-500 transition">全解除</button>
+        </div>
+        <p class="text-xs text-slate-500 mb-3">タップで複数選択できます（同圏内は自動で日帰り0泊になります）</p>
+
+        <div class="grid grid-cols-3 sm:grid-cols-4 gap-2" id="cityGrid">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- 3. 交通手段 & 予約スタイル -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full theme-bg text-white text-xs flex items-center justify-center shrink-0">3</span>
+            <span>移動手段の優先ルール</span>
+          </h2>
+          <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">任意</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5 mb-4 auto-rows-fr" id="transportModeGroup"></div>
+
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">予約タイミング・割引スタイル</label>
+        <div class="grid grid-cols-3 gap-2 auto-rows-fr" id="bookingStyleGroup"></div>
+      </section>
+
+      <!-- 4. 宿泊設定 & グレード -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full theme-bg text-white text-xs flex items-center justify-center shrink-0">4</span>
+            <span>宿泊の有無・宿のグレード</span>
+          </h2>
+          <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">任意</span>
+        </div>
+
+        <div class="mb-3">
+          <label class="inline-flex items-center cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 w-full">
+            <input type="checkbox" id="enableStayToggle" onchange="toggleAllStays()" class="sr-only peer theme-toggle">
+            <div class="toggle-track w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all relative shrink-0 transition-colors"></div>
+            <span class="ml-2.5 text-xs font-semibold text-slate-700">遠征先で宿泊する（同圏内は日帰り0泊）</span>
+          </label>
+        </div>
+
+        <div id="hotelGradeSection" class="space-y-3 opacity-40 pointer-events-none transition-opacity">
+          <div class="grid grid-cols-2 gap-2.5 auto-rows-fr" id="hotelGradeGroup"></div>
+
+          <div class="pt-1">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500">宿代の微調整（1泊あたり）</span>
+              <span id="hotelOffsetLabel" class="font-bold theme-text">±0円</span>
+            </div>
+            <input type="range" id="hotelOffset" min="-3000" max="8000" step="500" value="0" oninput="scheduleRecalc()" class="w-full h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. グッズ・食費・遠征雑費（オプション） -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full theme-bg text-white text-xs flex items-center justify-center shrink-0">5</span>
+            <span>グッズ・現地食費</span>
+          </h2>
+          <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">任意</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 items-end">
+          <div class="flex flex-col justify-end">
+            <label class="block text-xs font-semibold text-slate-500 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">ツアー全体のグッズ予算</label>
+            <div class="relative">
+              <input type="number" id="goodsBudget" value="" placeholder="0" step="1000" min="0" oninput="scheduleRecalc()" class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-300 text-sm">
+              <span class="absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 pointer-events-none">円</span>
+            </div>
+          </div>
+          <div class="flex flex-col justify-end">
+            <label class="block text-xs font-semibold text-slate-500 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">1都市あたりの食費・雑費</label>
+            <div class="relative">
+              <input type="number" id="foodPerTrip" value="" placeholder="0" step="1000" min="0" oninput="scheduleRecalc()" class="w-full h-10 pl-3 pr-8 rounded-lg border border-slate-300 text-sm">
+              <span class="absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 pointer-events-none">円</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Right Column: Results & Breakdown -->
+    <div class="lg:col-span-7 space-y-6">
+
+      <!-- 出発地未選択時のガイドアラート -->
+      <div id="originWarningAlert" class="hidden bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl text-xs flex items-center gap-2.5">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-sm shrink-0"></i>
+        <span><strong>出発地が未選択です</strong>：「1. 基本情報」から出発地を選ぶと、各都市への交通費が自動計算されます。</span>
+      </div>
+
+      <!-- Summary KPI Cards + 貯金計画バー -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 pb-4 mb-4 border-b border-slate-100">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full theme-light-bg theme-text" id="summaryBadge">条件を選択してください</span>
+            <h2 class="text-xl font-extrabold text-slate-800 mt-1" id="displayTourTitle">推し活 遠征プラン</h2>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-500">遠征費用 総合計</div>
+            <div class="text-3xl md:text-4xl font-black theme-text tracking-tight" id="grandTotalDisplay">¥0</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div class="text-[11px] text-slate-500 flex items-center gap-1">
+              <i class="fa-solid fa-train text-blue-500"></i> 交通費合計
+            </div>
+            <div class="text-lg font-bold text-slate-800 mt-0.5" id="transportTotalDisplay">¥0</div>
+            <div class="text-[10px] text-slate-400" id="transportSubDisplay">往復・現地移動込</div>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div class="text-[11px] text-slate-500 flex items-center gap-1">
+              <i class="fa-solid fa-bed text-amber-500"></i> 宿泊費合計
+            </div>
+            <div class="text-lg font-bold text-slate-800 mt-0.5" id="hotelTotalDisplay">¥0</div>
+            <div class="text-[10px] text-slate-400" id="hotelSubDisplay">計0泊</div>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div class="text-[11px] text-slate-500 flex items-center gap-1">
+              <i class="fa-solid fa-ticket text-pink-500"></i> チケット・ドリンク
+            </div>
+            <div class="text-lg font-bold text-slate-800 mt-0.5" id="ticketTotalDisplay">¥0</div>
+            <div class="text-[10px] text-slate-400" id="ticketSubDisplay">計0公演</div>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div class="text-[11px] text-slate-500 flex items-center gap-1">
+              <i class="fa-solid fa-bag-shopping text-emerald-500"></i> グッズ・食費他
+            </div>
+            <div class="text-lg font-bold text-slate-800 mt-0.5" id="extraTotalDisplay">¥0</div>
+            <div class="text-[10px] text-slate-400" id="extraSubDisplay">1都市平均 ¥0</div>
+          </div>
+        </div>
+
+        <!-- 遠征貯金計画シミュレーター -->
+        <div class="mt-4 pt-3.5 border-t border-slate-100 space-y-2.5 bg-slate-50/70 rounded-xl px-3.5 py-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-piggy-bank theme-text text-sm"></i>
+              <span class="text-xs font-bold text-slate-700">遠征貯金計画シミュレーター</span>
+              <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded">任意</span>
+            </div>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="enableSavingToggle" onchange="onSavingToggle()" class="sr-only peer theme-toggle">
+              <div class="toggle-track w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all relative shrink-0 transition-colors"></div>
+              <span class="ml-2 text-xs font-semibold text-slate-600">利用する</span>
+            </label>
+          </div>
+
+          <div id="savingSection" class="hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-t border-slate-200/60">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-medium text-slate-600 whitespace-nowrap">ツアー開始まであと</span>
+              <select id="savingMonths" onchange="scheduleRecalc()" class="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white text-slate-800 focus:outline-none">
+                <option value="1">1ヶ月</option>
+                <option value="2">2ヶ月</option>
+                <option value="3">3ヶ月</option>
+                <option value="4">4ヶ月</option>
+                <option value="5">5ヶ月</option>
+                <option value="6" selected>6ヶ月</option>
+                <option value="8">8ヶ月</option>
+                <option value="10">10ヶ月</option>
+                <option value="12">12ヶ月（1年）</option>
+              </select>
+            </div>
+            <div class="flex items-baseline gap-2 ml-auto sm:ml-0 whitespace-nowrap">
+              <span class="text-xs text-slate-500">毎月の目標貯金額</span>
+              <span class="text-lg font-black theme-text" id="monthlySavingDisplay">¥0 / 月</span>
+              <span class="text-[11px] text-slate-400" id="dailySavingDisplay">（1日約¥0）</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div class="mb-4">
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-chart-column theme-text"></i>
+            <span>都市別の費用内訳グラフ</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">※バーにカーソルを合わせると内訳を表示します</p>
+        </div>
+
+        <div id="chartEmptyState" class="py-12 text-center text-slate-400 text-xs">
+          <i class="fa-solid fa-map-location-dot text-2xl mb-2 block opacity-50"></i>
+          左のパネルから「参戦する公演都市」を選択するとグラフが表示されます
+        </div>
+
+        <div id="chartContainer" class="hidden grid-cols-1 md:grid-cols-3 gap-4 items-center">
+          <div class="md:col-span-2 h-64">
+            <canvas id="cityBarChart"></canvas>
+          </div>
+          <div class="h-56 flex flex-col items-center justify-center">
+            <canvas id="costPieChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed City Table (Customizable per city) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-list-check theme-text"></i>
+              <span>都市別の詳細・個別カスタマイズ</span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">特定の都市だけ「チケット単価・公演数・泊数・繁忙期」を個別に調整できます</p>
+          </div>
+          <button type="button" onclick="resetCityOverrides()" class="text-xs text-slate-500 hover:text-slate-800 underline">個別調整をリセット</button>
+        </div>
+
+        <!-- テーブル本体（スクロール対応） -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-200">
+                <th class="py-2.5 px-3 whitespace-nowrap sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">公演都市</th>
+                <th class="py-2.5 px-2 text-center whitespace-nowrap" title="1公演あたりのチケット単価（個別変更可）">チケット単価</th>
+                <th class="py-2.5 px-2 whitespace-nowrap">移動手段</th>
+                <th class="py-2.5 px-2 text-center whitespace-nowrap">公演数</th>
+                <th class="py-2.5 px-2 text-center whitespace-nowrap">泊数</th>
+                <th class="py-2.5 px-2 text-center whitespace-nowrap" title="GW・お盆・年末年始等の高騰を反映">繁忙期</th>
+                <th class="py-2.5 px-2.5 text-right whitespace-nowrap" title="公演数×(チケット単価＋ワンドリンク代)の計算結果">チケット代</th>
+                <th class="py-2.5 px-2.5 text-right whitespace-nowrap">往復交通費</th>
+                <th class="py-2.5 px-2.5 text-right whitespace-nowrap">宿泊費</th>
+                <th class="py-2.5 px-3 text-right whitespace-nowrap" title="チケット代＋往復交通費＋宿泊費の合計">小計</th>
+              </tr>
+            </thead>
+            <tbody id="cityTableBody" class="divide-y divide-slate-100 text-xs">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- テーブル直下：横スクロールしない独立した集計サマリーエリア -->
+        <div id="tableSummaryArea" class="hidden bg-slate-50/90 border-t-2 border-slate-200 text-xs px-4 py-3 space-y-2">
+          <!-- 1. 都市別費用の小計 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+            <div class="font-bold text-slate-700 flex items-center gap-2">
+              <span>都市別費用の小計</span>
+              <span class="text-[10px] font-normal text-slate-500">（全都市のチケット代・交通費・宿泊費）</span>
+            </div>
+            <div class="flex items-center justify-end gap-3 text-right font-semibold text-xs ml-auto">
+              <span class="text-pink-600">チケ: <span id="footTicketSum">¥0</span></span>
+              <span class="text-blue-600">交通: <span id="footTransportSum">¥0</span></span>
+              <span class="text-amber-600">宿泊: <span id="footHotelSum">¥0</span></span>
+              <span class="font-bold text-slate-800 text-sm pl-2 border-l border-slate-300" id="footCitySubtotal">¥0</span>
+            </div>
+          </div>
+          <!-- 2. 雑費 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/60">
+            <div class="font-bold text-slate-700">
+              <span>雑費</span>
+              <span id="footExtraDetail" class="text-[10px] font-normal text-slate-500 ml-1.5">（グッズ代・現地食費の合計）</span>
+            </div>
+            <div class="font-bold text-emerald-600 text-sm" id="footExtraSum">¥0</div>
+          </div>
+          <!-- 3. 合計（推しカラー淡色連動） -->
+          <div class="flex flex-wrap items-center justify-between gap-2 theme-light-bg px-3 py-2.5 rounded-xl transition-colors duration-300">
+            <div class="font-black text-slate-800 text-sm">
+              <span>合計</span>
+              <span class="text-[11px] font-normal text-slate-600 ml-1.5">（都市別費用の小計 ＋ 雑費）</span>
+            </div>
+            <div class="font-black theme-text text-base transition-colors duration-300" id="footGrandTotal">¥0</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="max-w-6xl w-full mx-auto px-4 py-6 mt-4 border-t border-slate-200/80 space-y-2 text-xs text-slate-400">
+    <p class="text-left">※当シミュレーターの交通費・宿泊費は主要路線の目安料金をもとにした概算です。実際の料金は時期・予約サイト・座席クラス等により異なります。</p>
+    <p class="font-medium text-slate-500 text-center">Created by <span class="font-bold theme-text">moco</span></p>
+  </footer>
+
+  <!-- Screenshot Summary Modal -->
+  <div id="summaryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div id="summaryCardContainer" class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100">
+      <div class="theme-bg p-5 text-white relative">
+        <button type="button" onclick="closeSummaryModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-white z-10">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="text-xs opacity-90 font-semibold tracking-wider">OSHIKATSU EXPEDITION ESTIMATE</div>
+        <h3 class="text-xl font-black mt-0.5" id="modalTourTitle">推し活 遠征プラン</h3>
+
+        <div class="mt-3 flex items-end justify-between gap-2">
+          <div class="bg-white/20 px-3 py-1.5 rounded-xl text-xs leading-snug min-h-[76px] flex flex-col justify-center">
+            <div id="modalOriginLine" class="font-bold">東京都発</div>
+            <div id="modalStatsLine" class="text-[11px] opacity-95 mt-0.5">0都市・0公演・0泊</div>
+          </div>
+          <div class="text-right shrink-0">
+            <span class="text-xs opacity-80 block">遠征総額</span>
+            <span class="text-3xl font-black leading-none" id="modalGrandTotal">¥0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-5 space-y-3.5">
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-50 p-2.5 rounded-xl min-h-[88px] flex flex-col items-center justify-center text-center">
+            <div class="text-xs text-slate-500">交通費</div>
+            <div class="text-base font-bold text-slate-800" id="modalTransport">¥0</div>
+          </div>
+          <div class="bg-slate-50 p-2.5 rounded-xl min-h-[88px] flex flex-col items-center justify-center text-center">
+            <div class="text-xs text-slate-500">宿泊費</div>
+            <div class="text-base font-bold text-slate-800" id="modalHotel">¥0</div>
+          </div>
+          <div class="bg-slate-50 p-2.5 rounded-xl min-h-[88px] flex flex-col items-center justify-center text-center">
+            <div class="text-xs text-slate-500">チケット・他</div>
+            <div class="text-base font-bold text-slate-800" id="modalTicketOther">¥0</div>
+          </div>
+        </div>
+
+        <div id="modalSavingBox" class="hidden theme-light-bg rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+          <span class="font-bold theme-text flex items-center gap-1.5">
+            <i class="fa-solid fa-piggy-bank"></i>
+            <span id="modalSavingLabel">6ヶ月貯金プラン</span>
+          </span>
+          <span class="font-black theme-text" id="modalSavingValue">月々 ¥0</span>
+        </div>
+
+        <div class="max-h-52 overflow-y-auto divide-y divide-slate-100 border-t border-b border-slate-100 py-1" id="modalCityList">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="space-y-1.5 text-[11px] text-slate-400 pt-1">
+          <div id="modalConditions" class="w-full text-left leading-snug break-words min-h-[30px]">条件: 未設定</div>
+          <div class="text-right font-medium text-slate-400">by moco | #推し活遠征シミュレーター</div>
+        </div>
+
+        <div id="modalActionButtons" class="pt-1 flex gap-2">
+          <button type="button" onclick="shareOnX()" class="flex-1 bg-slate-900 hover:bg-black text-white text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+            <i class="fa-brands fa-x-twitter text-sm"></i>
+            <span>ポスト</span>
+          </button>
+          <button type="button" onclick="downloadCardImage()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm" title="カードを画像として保存">
+            <i class="fa-solid fa-download"></i>
+            <span>画像保存</span>
+          </button>
+          <button type="button" onclick="copyShareText()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5" title="テキストをコピー">
+            <i class="fa-regular fa-copy"></i>
+            <span>コピー</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg">コピーしました！</span>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const yen = value => `¥${value.toLocaleString()}`;
+
+    const OPTION_GROUPS = {
+      transport: {
+        target: 'transportModeGroup', dataKey: 'mode', setter: 'setTransportMode',
+        className: 'h-full min-h-[78px] border border-slate-200 rounded-xl p-3 text-left transition flex items-start gap-2.5',
+        items: [
+          ['shinkansen', 'fa-train-subway', '新幹線優先', '本州・九州は新幹線、<br>遠距離のみ飛行機'],
+          ['lcc', 'fa-plane-up', '飛行機（LCC）優先', '空港路線がある都市は<br>最安LCCを活用'],
+          ['fsc', 'fa-plane', '大手航空会社優先', 'ANA・JAL等の<br>一般便を利用'],
+          ['bus', 'fa-bus', '夜行・高速バス優先', '交通費を極限まで<br>抑える節約ルート']
+        ]
+      },
+      booking: {
+        target: 'bookingStyleGroup', dataKey: 'style', setter: 'setBookingStyle',
+        className: 'h-full min-h-[64px] border border-slate-200 rounded-xl py-2 px-2 text-center text-xs transition flex flex-col items-center justify-center',
+        items: [
+          ['regular', '', '通常・単体予約', '定価・変更自由'],
+          ['early', '', '早割フル活用', 'トクだ値・早特等'],
+          ['pack', '', '交通＋宿パック', 'セット割 (約12%減)']
+        ]
+      },
+      hotel: {
+        target: 'hotelGradeGroup', dataKey: 'grade', setter: 'setHotelGrade',
+        className: 'h-full min-h-[72px] border border-slate-200 rounded-xl p-3 text-left transition flex flex-col justify-between',
+        items: [
+          ['netcafe', 'fa-desktop text-slate-400', 'ネカフェ・漫画喫茶', '目安: 3,500円 / 泊'],
+          ['capsule', 'fa-bed text-slate-400', 'カプセル・ドミトリー', '目安: 5,500円 / 泊'],
+          ['business', 'fa-hotel theme-text', 'ビジネスホテル', '目安: 11,000円 / 泊'],
+          ['resort', 'fa-spa text-amber-500', 'シティ・リゾート', '目安: 20,000円 / 泊']
+        ]
+      }
+    };
+
+    const CITIES = [
+      { id: 'hokkaido', name: '北海道(札幌)', region: 'hokkaido' },
+      { id: 'miyagi',   name: '宮城(仙台)',   region: 'tohoku' },
+      { id: 'niigata',  name: '新潟',         region: 'chubu' },
+      { id: 'saitama',  name: '埼玉',         region: 'kanto' },
+      { id: 'chiba',    name: '千葉',         region: 'kanto' },
+      { id: 'tokyo',    name: '東京',         region: 'kanto' },
+      { id: 'kanagawa', name: '神奈川(横浜)', region: 'kanto' },
+      { id: 'shizuoka', name: '静岡',         region: 'tokai' },
+      { id: 'aichi',    name: '愛知(名古屋)', region: 'tokai' },
+      { id: 'osaka',    name: '大阪',         region: 'kansai' },
+      { id: 'hyogo',    name: '兵庫(神戸)',   region: 'kansai' },
+      { id: 'hiroshima',name: '広島',         region: 'chugoku' },
+      { id: 'fukuoka',  name: '福岡',         region: 'kyushu' }
+    ];
+
+    const CITY_MAP = Object.fromEntries(CITIES.map(city => [city.id, city]));
+
+    const ORIGINS = {
+      tokyo:     { name: '東京都',   region: 'kanto' },
+      kanagawa:  { name: '神奈川県', region: 'kanto' },
+      chiba:     { name: '千葉県',   region: 'kanto' },
+      saitama:   { name: '埼玉県',   region: 'kanto' },
+      osaka:     { name: '大阪府',   region: 'kansai' },
+      aichi:     { name: '愛知県',   region: 'tokai' },
+      fukuoka:   { name: '福岡県',   region: 'kyushu' },
+      hokkaido:  { name: '北海道',   region: 'hokkaido' },
+      miyagi:    { name: '宮城県',   region: 'tohoku' },
+      hiroshima: { name: '広島県',   region: 'chugoku' }
+    };
+
+    const HOTEL_BASE = {
+      netcafe:  { name: 'ネカフェ',         price: 3500 },
+      capsule:  { name: 'カプセル',         price: 5500 },
+      business: { name: 'ビジネスホテル',   price: 11000 },
+      resort:   { name: 'シティ・リゾート', price: 20000 }
+    };
+
+    const KANTO_ROUTES = {
+      hokkaido:  { shinkansen: 47000, lcc: 24000, fsc: 36000, bus: null },
+      miyagi:    { shinkansen: 25000, lcc: null,  fsc: null,  bus: 9000 },
+      niigata:   { shinkansen: 23000, lcc: null,  fsc: null,  bus: 8500 },
+      saitama:   { local: 1800 },
+      chiba:     { local: 1800 },
+      tokyo:     { local: 1600 },
+      kanagawa:  { local: 2000 },
+      shizuoka:  { shinkansen: 14500, lcc: null,  fsc: null,  bus: 6500 },
+      aichi:     { shinkansen: 24200, lcc: null,  fsc: null,  bus: 10000 },
+      osaka:     { shinkansen: 31200, lcc: 19000, fsc: 29000, bus: 13000 },
+      hyogo:     { shinkansen: 32400, lcc: 20000, fsc: 28000, bus: 13500 },
+      hiroshima: { shinkansen: 40000, lcc: 23000, fsc: 33000, bus: 16000 },
+      fukuoka:   { shinkansen: 48000, lcc: 26000, fsc: 38000, bus: 22000 }
+    };
+
+    const KANSAI_ROUTES = {
+      hokkaido:  { shinkansen: null,  lcc: 25000, fsc: 38000, bus: null },
+      miyagi:    { shinkansen: 44000, lcc: 22000, fsc: 32000, bus: 17000 },
+      niigata:   { shinkansen: 36000, lcc: 21000, fsc: 30000, bus: 14000 },
+      saitama:   { shinkansen: 31800, lcc: 20000, fsc: 29500, bus: 13000 },
+      chiba:     { shinkansen: 32200, lcc: 19500, fsc: 29500, bus: 13500 },
+      tokyo:     { shinkansen: 31200, lcc: 19500, fsc: 29000, bus: 13000 },
+      kanagawa:  { shinkansen: 30600, lcc: 20000, fsc: 29000, bus: 12500 },
+      shizuoka:  { shinkansen: 21500, lcc: null,  fsc: null,  bus: 8500 },
+      aichi:     { shinkansen: 14200, lcc: null,  fsc: null,  bus: 6000 },
+      osaka:     { local: 1200 },
+      hyogo:     { local: 1800 },
+      hiroshima: { shinkansen: 22800, lcc: null,  fsc: null,  bus: 9000 },
+      fukuoka:   { shinkansen: 32800, lcc: 16500, fsc: 26000, bus: 12000 }
+    };
+
+    const DRINK_FEE_UNIT = 600;
+
+    const createInitialState = () => ({
+      origin: 'tokyo', selectedCities: new Set(), transportMode: '', bookingStyle: '',
+      enableStay: false, includeDrink: false, enableSaving: false, hotelGrade: '',
+      themeColor: '#8b5cf6', themeLight: '#f3e8ff', overrides: {}
+    });
+    let state = createInitialState();
+
+    let barChart = null;
+    let pieChart = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderOptionGroups();
+      loadFromUrlParams();
+      renderCityGrid();
+      recalc();
+    });
+
+    function resetAll() {
+      state = createInitialState();
+      setTheme('#8b5cf6', '#f3e8ff');
+      $('tourTitle').value = '';
+      $('originSelect').value = 'tokyo';
+      $('ticketPrice').value = '10000';
+      $('drinkFeeToggle').checked = false;
+      $('enableStayToggle').checked = false;
+      $('enableSavingToggle').checked = false;
+      $('savingSection').classList.add('hidden');
+      $('hotelOffset').value = 0;
+      $('goodsBudget').value = '';
+      $('foodPerTrip').value = '';
+      $('savingMonths').value = '6';
+
+      document.querySelectorAll('.option-card').forEach(el => el.classList.remove('active'));
+      $('hotelGradeSection').classList.add('opacity-40', 'pointer-events-none');
+
+      if (window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      renderCityGrid();
+      recalc();
+      showToast('すべての項目をリセットしました');
+    }
+
+    function setTheme(color, light, recalculate = true) {
+      state.themeColor = color;
+      state.themeLight = light;
+      document.documentElement.style.setProperty('--theme-color', color);
+      document.documentElement.style.setProperty('--theme-light', light);
+      document.documentElement.style.backgroundColor = color;
+
+      // iPad Safari等のURLバー（theme-color）を確実に更新するためのメタタグ再生成処理
+      const oldMeta = $('metaThemeColor');
+      if (oldMeta) oldMeta.remove();
+      const newMeta = document.createElement('meta');
+      newMeta.name = 'theme-color';
+      newMeta.content = color;
+      newMeta.id = 'metaThemeColor';
+      document.head.appendChild(newMeta);
+
+      // 棒グラフはテーマ変更時に一度破棄して再生成する。
+      // Chart.js の内部スタイルキャッシュに左右されず、2回目以降も確実に色を反映できる。
+      if (barChart) {
+        barChart.destroy();
+        barChart = null;
+      }
+
+      // URL復元中は全設定の読み込み完了後に一度だけ recalc() する。
+      if (recalculate) recalc();
+    }
+
+    function renderOptionGroups() {
+      Object.values(OPTION_GROUPS).forEach(group => {
+        $(group.target).innerHTML = group.items.map(([value, icon, title, desc]) => {
+          const iconHtml = icon ? `<i class="fa-solid ${icon} text-xs mt-0.5 shrink-0"></i>` : '';
+          const body = group.dataKey === 'grade'
+            ? `<div class="flex items-start gap-1.5">${iconHtml}<span class="text-xs font-bold text-slate-800 leading-snug">${title}</span></div><div class="text-[11px] text-slate-500 mt-1">${desc}</div>`
+            : `${iconHtml}<div class="${group.dataKey === 'mode' ? 'flex flex-col justify-between h-full' : ''}"><div class="font-bold text-slate-800 leading-tight">${title}</div><div class="text-[${group.dataKey === 'mode' ? '11' : '10'}px] text-slate-500 leading-tight mt-1">${desc}</div></div>`;
+          return `<button type="button" onclick="${group.setter}('${value}')" data-${group.dataKey}="${value}" class="option-card ${group.className}">${body}</button>`;
+        }).join('');
+      });
+    }
+
+    function renderCityGrid() {
+      const grid = $('cityGrid');
+      grid.innerHTML = '';
+      CITIES.forEach(c => {
+        const active = state.selectedCities.has(c.id);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'city-chip border border-slate-200 rounded-xl py-2 px-2 text-xs font-bold transition flex items-center justify-between ' + (active ? 'active' : 'bg-slate-50 text-slate-600 hover:bg-slate-100');
+
+        const span = document.createElement('span');
+        span.textContent = c.name;
+
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid ' + (active ? 'fa-check' : 'fa-plus text-slate-400') + ' text-[10px]';
+
+        btn.appendChild(span);
+        btn.appendChild(icon);
+        btn.onclick = () => toggleCity(c.id);
+        grid.appendChild(btn);
+      });
+    }
+
+    function toggleCity(cityId) {
+      if (state.selectedCities.has(cityId)) {
+        state.selectedCities.delete(cityId);
+      } else {
+        state.selectedCities.add(cityId);
+      }
+      renderCityGrid();
+      recalc();
+    }
+
+    function selectPreset(type) {
+      if (type === '5dome') {
+        state.selectedCities = new Set(['hokkaido', 'tokyo', 'aichi', 'osaka', 'fukuoka']);
+      } else if (type === '8city') {
+        state.selectedCities = new Set(['hokkaido', 'miyagi', 'saitama', 'tokyo', 'kanagawa', 'aichi', 'osaka', 'fukuoka']);
+      } else if (type === 'clear') {
+        state.selectedCities = new Set();
+      }
+      renderCityGrid();
+      recalc();
+    }
+
+    function onOriginChange() {
+      state.origin = $('originSelect').value;
+      Object.keys(state.overrides).forEach(k => {
+        delete state.overrides[k].nights;
+        delete state.overrides[k].mode;
+      });
+      recalc();
+    }
+
+    function onDrinkToggle() {
+      state.includeDrink = $('drinkFeeToggle').checked;
+      recalc();
+    }
+
+    function onSavingToggle() {
+      state.enableSaving = $('enableSavingToggle').checked;
+      $('savingSection').classList.toggle('hidden', !state.enableSaving);
+      recalc();
+    }
+
+    function selectOption(groupId, dataKey, stateKey, value) {
+      state[stateKey] = value;
+      document.querySelectorAll(`#${groupId} .option-card`).forEach(el =>
+        el.classList.toggle('active', el.dataset[dataKey] === value)
+      );
+      recalc();
+    }
+
+    function setTransportMode(mode) {
+      Object.keys(state.overrides).forEach(k => delete state.overrides[k].mode);
+      selectOption('transportModeGroup', 'mode', 'transportMode', mode);
+    }
+    const setBookingStyle = style => selectOption('bookingStyleGroup', 'style', 'bookingStyle', style);
+
+    function toggleAllStays() {
+      state.enableStay = $('enableStayToggle').checked;
+      $('hotelGradeSection').classList.toggle('opacity-40', !state.enableStay);
+      $('hotelGradeSection').classList.toggle('pointer-events-none', !state.enableStay);
+      if (state.enableStay && !state.hotelGrade) setHotelGrade('business');
+      Object.keys(state.overrides).forEach(k => delete state.overrides[k].nights);
+      recalc();
+    }
+
+    const setHotelGrade = grade => selectOption('hotelGradeGroup', 'grade', 'hotelGrade', grade);
+
+    function resetCityOverrides() {
+      state.overrides = {};
+      recalc();
+    }
+
+    function getRouteOptionsForCity(originId, destId) {
+      if (!originId || !ORIGINS[originId]) {
+        return { isLocal: false, options: { shinkansen: 0, lcc: 0, fsc: 0, bus: 0 } };
+      }
+
+      const originObj = ORIGINS[originId];
+      const destObj = CITY_MAP[destId];
+
+      if (originId === destId) {
+        return { isLocal: true, options: { local: 1200 } };
+      }
+      if (originObj.region === 'kanto' && destObj.region === 'kanto') {
+        const base = KANTO_ROUTES[destId]?.local || 2000;
+        return { isLocal: true, options: { local: base } };
+      }
+      if (originObj.region === 'kansai' && destObj.region === 'kansai') {
+        return { isLocal: true, options: { local: 1800 } };
+      }
+
+      if (originObj.region === 'kanto') {
+        return { isLocal: false, options: { ...KANTO_ROUTES[destId] } };
+      }
+
+      if (originObj.region === 'kansai') {
+        return { isLocal: false, options: { ...KANSAI_ROUTES[destId] } };
+      }
+
+      return computeRegionalRoute(originId, destId);
+    }
+
+    const REGIONAL_ROUTES = {
+      aichi: {
+        dest: { shizuoka: { shinkansen: 13000, bus: 5500 }, hiroshima: { shinkansen: 28000, bus: 12000 }, miyagi: { shinkansen: 42000, lcc: 22000, fsc: 32000, bus: 16000 }, fukuoka: { shinkansen: 38000, lcc: 20000, fsc: 30000, bus: 15000 }, hokkaido: { lcc: 24000, fsc: 36000 } },
+        region: { kansai: { shinkansen: 14500, bus: 6000 }, kanto: { shinkansen: 24200, bus: 10000 } }
+      },
+      fukuoka: {
+        dest: { hiroshima: { shinkansen: 19000, bus: 8000 } },
+        region: { kansai: { shinkansen: 32800, lcc: 16500, fsc: 26000, bus: 12000 }, tokai: { shinkansen: 38000, lcc: 20000, fsc: 30000, bus: 15000 }, kanto: { shinkansen: 48000, lcc: 25000, fsc: 38000, bus: 22000 } },
+        fallback: { lcc: 28000, fsc: 42000 }
+      },
+      hokkaido: { dest: { miyagi: { shinkansen: 42000, lcc: 19000, fsc: 29000 } }, region: { kanto: { shinkansen: 47000, lcc: 24000, fsc: 36000 } }, fallback: { lcc: 27000, fsc: 40000 } },
+      miyagi: { dest: { hokkaido: { shinkansen: 42000, lcc: 19000, fsc: 29000 } }, region: { kanto: { shinkansen: 25000, bus: 9000 }, kansai: { shinkansen: 44000, lcc: 22000, fsc: 32000, bus: 17000 } }, fallback: { shinkansen: 38000, fsc: 34000, bus: 15000 } }
+    };
+    const DEFAULT_REGIONAL_ROUTE = { shinkansen: 32000, lcc: 22000, fsc: 33000, bus: 13000 };
+    const MODE_PRIORITY = {
+      lcc: ['lcc', 'shinkansen', 'fsc'],
+      fsc: ['fsc', 'shinkansen', 'lcc'],
+      bus: ['bus', 'lcc', 'shinkansen']
+    };
+
+    function computeRegionalRoute(originId, destId) {
+      const rule = REGIONAL_ROUTES[originId];
+      const region = CITY_MAP[destId]?.region;
+      return { isLocal: false, options: rule?.dest?.[destId] || rule?.region?.[region] || rule?.fallback || DEFAULT_REGIONAL_ROUTE };
+    }
+
+    function pickBestMode(options, preferredMode, isLocal) {
+      if (isLocal) return 'local';
+      const pref = preferredMode || 'shinkansen';
+      if (pref === 'shinkansen') {
+        if (options.shinkansen && options.shinkansen <= 45000) return 'shinkansen';
+        return ['fsc', 'lcc', 'shinkansen'].find(m => options[m]);
+      }
+      return (MODE_PRIORITY[pref] || Object.keys(options)).find(m => options[m] != null);
+    }
+
+    const MODE_LABELS = {
+      local: '在来線(日帰り)',
+      shinkansen: '新幹線(指定席)',
+      lcc: '飛行機(LCC)',
+      fsc: '飛行機(大手)',
+      bus: '夜行/高速バス'
+    };
+
+    function debounce(fn, wait = 180) {
+      let timer = null;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), wait);
+      };
+    }
+
+    const scheduleRecalc = debounce(recalc, 180);
+
+    function calculateTotals() {
+      const warningVisible = !state.origin && state.selectedCities.size > 0;
+
+      const baseTicketUnit = Number($('ticketPrice').value) || 0;
+      const drinkUnit = state.includeDrink ? DRINK_FEE_UNIT : 0;
+      const hotelOffset = Number($('hotelOffset').value) || 0;
+      const goodsBudget = Number($('goodsBudget').value) || 0;
+      const foodPerTrip = Number($('foodPerTrip').value) || 0;
+      const savingMonths = Math.max(1, Number($('savingMonths').value) || 6);
+      const tourTitle = $('tourTitle').value.trim() || '推し活 遠征プラン';
+
+      const gradeKey = state.hotelGrade || 'business';
+      const baseHotelRate = Math.max(1500, HOTEL_BASE[gradeKey].price + hotelOffset);
+      const activeStyle = state.bookingStyle || 'regular';
+
+      let totalTransport = 0;
+      let totalHotel = 0;
+      let totalTickets = 0;
+      let totalShows = 0;
+      let totalNights = 0;
+      const rowsData = [];
+
+      CITIES.forEach(city => {
+        if (!state.selectedCities.has(city.id)) return;
+
+        const routeInfo = getRouteOptionsForCity(state.origin, city.id);
+        const ov = state.overrides[city.id] || {};
+        const availableModes = Object.keys(routeInfo.options).filter(k => routeInfo.options[k] != null);
+        const chosenMode = (ov.mode && availableModes.includes(ov.mode))
+          ? ov.mode
+          : pickBestMode(routeInfo.options, state.transportMode, routeInfo.isLocal);
+
+        const defaultNights = routeInfo.isLocal ? 0 : (state.enableStay ? (chosenMode === 'bus' ? 0 : 1) : 0);
+        const nights = (ov.nights !== undefined) ? ov.nights : defaultNights;
+        const shows = (ov.shows !== undefined) ? ov.shows : 1;
+        const cityTicketUnit = (ov.ticketPrice !== undefined) ? ov.ticketPrice : baseTicketUnit;
+        const effectiveCityTicketUnit = cityTicketUnit + drinkUnit;
+        const isPeak = !!ov.peak;
+
+        let transportCost = state.origin ? (routeInfo.options[chosenMode] || 0) : 0;
+        if (state.origin && !routeInfo.isLocal) {
+          if (activeStyle === 'early') {
+            if (chosenMode === 'shinkansen') transportCost = Math.round(transportCost * 0.87);
+            if (chosenMode === 'lcc') transportCost = Math.round(transportCost * 0.82);
+            if (chosenMode === 'fsc') transportCost = Math.round(transportCost * 0.78);
+          } else if (activeStyle === 'pack' && nights > 0) {
+            transportCost = Math.round(transportCost * 0.88);
+          }
+          if (isPeak) {
+            if (chosenMode === 'shinkansen') transportCost += 1200;
+            if (chosenMode === 'lcc' || chosenMode === 'fsc') transportCost = Math.round(transportCost * 1.45);
+            if (chosenMode === 'bus') transportCost = Math.round(transportCost * 1.3);
+          }
+        }
+
+        let cityHotelUnit = baseHotelRate;
+        if (city.id === 'tokyo' || city.id === 'osaka' || city.id === 'fukuoka') cityHotelUnit += 1000;
+        if (activeStyle === 'early') {
+          cityHotelUnit = Math.round(cityHotelUnit * 0.9);
+        } else if (activeStyle === 'pack') {
+          cityHotelUnit = Math.round(cityHotelUnit * 0.88);
+        }
+        if (isPeak) cityHotelUnit = Math.round(cityHotelUnit * 1.5);
+
+        const hotelCost = nights * cityHotelUnit;
+        const ticketCost = shows * effectiveCityTicketUnit;
+        const subtotal = transportCost + hotelCost + ticketCost;
+
+        totalTransport += transportCost;
+        totalHotel += hotelCost;
+        totalTickets += ticketCost;
+        totalShows += shows;
+        totalNights += nights;
+
+        rowsData.push({
+          city,
+          availableModes,
+          chosenMode,
+          shows,
+          nights,
+          cityTicketUnit,
+          effectiveCityTicketUnit,
+          isPeak,
+          transportCost,
+          hotelCost,
+          ticketCost,
+          subtotal
+        });
+      });
+
+      const cityCount = rowsData.length;
+      const citySubtotalSum = totalTransport + totalHotel + totalTickets;
+      const totalFood = foodPerTrip * cityCount;
+      const totalExtra = goodsBudget + totalFood;
+      const grandTotal = citySubtotalSum + totalExtra;
+      const monthlySaving = Math.ceil(grandTotal / savingMonths);
+      const dailySaving = Math.ceil(grandTotal / (savingMonths * 30));
+      const originLabel = state.origin ? ORIGINS[state.origin].name + '発' : '出発地未選択';
+
+      return {
+        warningVisible,
+        hotelOffset,
+        tourTitle,
+        savingMonths,
+        rowsData,
+        cityCount,
+        citySubtotalSum,
+        totalTransport,
+        totalHotel,
+        totalTickets,
+        totalShows,
+        totalNights,
+        goodsBudget,
+        foodPerTrip,
+        totalExtra,
+        grandTotal,
+        monthlySaving,
+        dailySaving,
+        originLabel
+      };
+    }
+
+    function renderTotals(data) {
+      $('originWarningAlert').classList.toggle('hidden', !data.warningVisible);
+      $('hotelOffsetLabel').textContent = (data.hotelOffset >= 0 ? '+' + data.hotelOffset.toLocaleString() + '円' : data.hotelOffset.toLocaleString() + '円');
+      $('displayTourTitle').textContent = data.tourTitle;
+
+      $('summaryBadge').textContent = data.cityCount > 0
+        ? data.originLabel + '・全' + data.cityCount + '都市・' + data.totalShows + '公演・計' + data.totalNights + '泊'
+        : data.originLabel + '・参戦都市を選択してください';
+
+      $('grandTotalDisplay').textContent = yen(data.grandTotal);
+      $('transportTotalDisplay').textContent = yen(data.totalTransport);
+      $('hotelTotalDisplay').textContent = yen(data.totalHotel);
+      $('hotelSubDisplay').textContent = state.hotelGrade
+        ? '計' + data.totalNights + '泊 (' + HOTEL_BASE[state.hotelGrade].name + ')'
+        : '計' + data.totalNights + '泊';
+      $('ticketTotalDisplay').textContent = yen(data.totalTickets);
+      $('ticketSubDisplay').textContent = state.includeDrink
+        ? '計' + data.totalShows + '公演 (D代¥600込)'
+        : '計' + data.totalShows + '公演';
+      $('extraTotalDisplay').textContent = yen(data.totalExtra);
+      $('extraSubDisplay').textContent = '1都市平均 ¥' + (data.cityCount ? Math.round(data.grandTotal / data.cityCount).toLocaleString() : '0');
+      $('monthlySavingDisplay').textContent = yen(data.monthlySaving) + ' / 月';
+      $('dailySavingDisplay').textContent = '（1日約¥' + data.dailySaving.toLocaleString() + '）';
+
+      renderTable(data);
+      updateCharts(data);
+      updateModalContent(data);
+    }
+
+    function recalc() {
+      renderTotals(calculateTotals());
+    }
+
+    function renderTable(data) {
+      const { rowsData, totalTransport, totalHotel, totalTickets, citySubtotalSum, goodsBudget, foodPerTrip, cityCount, totalExtra, grandTotal } = data;
+      const tbody = $('cityTableBody');
+      const summaryArea = $('tableSummaryArea');
+      tbody.innerHTML = '';
+
+      if (rowsData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">参戦する公演都市を選択すると、ここに都市別の明細が表示されます</td></tr>';
+        summaryArea.classList.add('hidden');
+        return;
+      }
+
+      summaryArea.classList.remove('hidden');
+
+      rowsData.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition';
+
+        const modeOptionsHtml = r.availableModes.map(m =>
+          '<option value="' + m + '" ' + (m === r.chosenMode ? 'selected' : '') + '>' + MODE_LABELS[m] + '</option>'
+        ).join('');
+
+        const showsOptionsHtml = [1, 2, 3, 4].map(n =>
+          '<option value="' + n + '" ' + (n === r.shows ? 'selected' : '') + '>' + n + '公演</option>'
+        ).join('');
+
+        const nightsOptionsHtml = [0, 1, 2, 3].map(n =>
+          '<option value="' + n + '" ' + (n === r.nights ? 'selected' : '') + '>' + (n === 0 ? '日帰り' : n + '泊') + '</option>'
+        ).join('');
+
+        tr.innerHTML =
+          '<td class="py-2.5 px-3 font-bold text-slate-800 whitespace-nowrap sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">' + r.city.name + '</td>' +
+          '<td class="py-2.5 px-2 text-center">' +
+            '<input type="number" value="' + r.cityTicketUnit + '" step="500" min="0" onchange="updateOverride(\'' + r.city.id + '\', \'ticketPrice\', Number(this.value))" class="w-20 border border-slate-200 rounded px-1.5 py-1 text-xs text-right bg-white">' +
+          '</td>' +
+          '<td class="py-2.5 px-2">' +
+            '<select onchange="updateOverride(\'' + r.city.id + '\', \'mode\', this.value)" class="border border-slate-200 rounded px-1.5 py-1 text-xs bg-white">' +
+              modeOptionsHtml +
+            '</select>' +
+          '</td>' +
+          '<td class="py-2.5 px-2 text-center">' +
+            '<select onchange="updateOverride(\'' + r.city.id + '\', \'shows\', Number(this.value))" class="border border-slate-200 rounded px-1.5 py-1 text-xs bg-white">' +
+              showsOptionsHtml +
+            '</select>' +
+          '</td>' +
+          '<td class="py-2.5 px-2 text-center">' +
+            '<select onchange="updateOverride(\'' + r.city.id + '\', \'nights\', Number(this.value))" class="border border-slate-200 rounded px-1.5 py-1 text-xs bg-white">' +
+              nightsOptionsHtml +
+            '</select>' +
+          '</td>' +
+          '<td class="py-2.5 px-2 text-center">' +
+            '<input type="checkbox" ' + (r.isPeak ? 'checked' : '') + ' onchange="updateOverride(\'' + r.city.id + '\', \'peak\', this.checked)" class="w-4 h-4 rounded cursor-pointer accent-amber-500">' +
+          '</td>' +
+          '<td class="py-2.5 px-2.5 text-right font-semibold text-pink-600 whitespace-nowrap">¥' + r.ticketCost.toLocaleString() + '</td>' +
+          '<td class="py-2.5 px-2.5 text-right font-semibold text-blue-600 whitespace-nowrap">¥' + r.transportCost.toLocaleString() + '</td>' +
+          '<td class="py-2.5 px-2.5 text-right font-semibold text-amber-600 whitespace-nowrap">¥' + r.hotelCost.toLocaleString() + '</td>' +
+          '<td class="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">¥' + r.subtotal.toLocaleString() + '</td>';
+
+        tbody.appendChild(tr);
+      });
+
+      // 集計サマリーエリアへの値反映
+      $('footTicketSum').textContent = yen(totalTickets);
+      $('footTransportSum').textContent = yen(totalTransport);
+      $('footHotelSum').textContent = yen(totalHotel);
+      $('footCitySubtotal').textContent = yen(citySubtotalSum);
+
+      $('footExtraDetail').textContent =
+        '（グッズ代 ¥' + goodsBudget.toLocaleString() + ' ＋ 食費・雑費 ¥' + foodPerTrip.toLocaleString() + ' × ' + cityCount + '都市）';
+      $('footExtraSum').textContent = yen(totalExtra);
+      $('footGrandTotal').textContent = yen(grandTotal);
+    }
+
+    function updateOverride(cityId, key, val) {
+      if (!state.overrides[cityId]) state.overrides[cityId] = {};
+      state.overrides[cityId][key] = val;
+      recalc();
+    }
+
+    function updateCharts(data) {
+      const { rowsData, totalTransport, totalHotel, totalTickets, totalExtra } = data;
+      const emptyEl = $('chartEmptyState');
+      const containerEl = $('chartContainer');
+
+      if (rowsData.length === 0) {
+        emptyEl.classList.remove('hidden');
+        containerEl.classList.add('hidden');
+        containerEl.classList.remove('grid');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      containerEl.classList.remove('hidden');
+      containerEl.classList.add('grid');
+
+      const labels = rowsData.map(r => r.city.name.replace(/\(.*\)/, ''));
+      const transportData = rowsData.map(r => r.transportCost);
+      const hotelData = rowsData.map(r => r.hotelCost);
+      const ticketData = rowsData.map(r => r.ticketCost);
+
+      const ctxBar = $('cityBarChart').getContext('2d');
+      if (!barChart) {
+        barChart = new Chart(ctxBar, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: '交通費', data: transportData, backgroundColor: '#3b5ccc', borderRadius: 4 },
+              { label: '宿泊費', data: hotelData, backgroundColor: '#f59e0b', borderRadius: 4 },
+              { label: 'チケット代', data: ticketData, backgroundColor: state.themeColor, borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: {
+                stacked: true,
+                ticks: { callback: v => '¥' + (v / 1000) + 'k' }
+              }
+            },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ctx.dataset.label + ': ¥' + ctx.parsed.y.toLocaleString()
+                }
+              }
+            }
+          }
+        });
+      } else {
+        barChart.data.labels = labels;
+        barChart.data.datasets[0].data = transportData;
+        barChart.data.datasets[1].data = hotelData;
+        barChart.data.datasets[2].data = ticketData;
+        barChart.data.datasets[2].backgroundColor = state.themeColor;
+        barChart.update('none');
+      }
+
+      const ctxPie = $('costPieChart').getContext('2d');
+      if (!pieChart) {
+        pieChart = new Chart(ctxPie, {
+          type: 'doughnut',
+          data: {
+            labels: ['交通費', '宿泊費', 'チケット代', 'グッズ・他'],
+            datasets: [{
+              data: [totalTransport, totalHotel, totalTickets, totalExtra],
+              backgroundColor: ['#3b5ccc', '#f59e0b', state.themeColor, '#10b981'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+              title: { display: true, text: '費目別内訳', font: { size: 11 } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => yen(ctx.parsed)
+                }
+              }
+            }
+          }
+        });
+      } else {
+        pieChart.data.datasets[0].data = [totalTransport, totalHotel, totalTickets, totalExtra];
+        pieChart.data.datasets[0].backgroundColor = ['#3b5ccc', '#f59e0b', state.themeColor, '#10b981'];
+        pieChart.update('none');
+      }
+    }
+
+    function updateModalContent(data) {
+      const { tourTitle: title, originLabel, cityCount, totalShows, totalNights, grandTotal, totalTransport: transport, totalHotel: hotel, savingMonths, monthlySaving, rowsData } = data;
+      const ticketOther = data.totalTickets + data.totalExtra;
+      $('modalTourTitle').textContent = title;
+      $('modalOriginLine').textContent = originLabel;
+      $('modalStatsLine').textContent = cityCount > 0
+        ? '全' + cityCount + '都市・' + totalShows + '公演・計' + totalNights + '泊'
+        : '都市未選択';
+      $('modalGrandTotal').textContent = yen(grandTotal);
+      $('modalTransport').textContent = yen(transport);
+      $('modalHotel').textContent = yen(hotel);
+      $('modalTicketOther').textContent = yen(ticketOther);
+
+      const savingBox = $('modalSavingBox');
+      if (state.enableSaving) {
+        savingBox.classList.remove('hidden');
+        $('modalSavingLabel').textContent = savingMonths + 'ヶ月貯金プラン';
+        $('modalSavingValue').textContent = '月々 ¥' + monthlySaving.toLocaleString();
+      } else {
+        savingBox.classList.add('hidden');
+      }
+
+      const listEl = $('modalCityList');
+      if (rowsData.length === 0) {
+        listEl.innerHTML = '<div class="py-4 text-center text-xs text-slate-400">公演都市が選択されていません</div>';
+      } else {
+        listEl.innerHTML = rowsData.map(r =>
+          '<div class="py-1.5 flex items-center justify-between text-xs">' +
+            '<div>' +
+              '<span class="font-bold text-slate-800">' + r.city.name + '</span>' +
+              '<span class="text-[10px] text-slate-400 ml-1">' + MODE_LABELS[r.chosenMode] + ' / ' + (r.nights === 0 ? '日帰り' : r.nights + '泊') + ' / ' + r.shows + '公演</span>' +
+            '</div>' +
+            '<span class="font-bold text-slate-700">¥' + r.subtotal.toLocaleString() + '</span>' +
+          '</div>'
+        ).join('');
+      }
+
+      const hotelLabel = state.enableStay && state.hotelGrade ? HOTEL_BASE[state.hotelGrade].name : '宿泊なし';
+      const styleLabel = state.bookingStyle === 'early' ? '早割活用' : (state.bookingStyle === 'pack' ? 'パック割' : '通常予約');
+      const drinkLabel = state.includeDrink ? ' / ワンドリンク代込' : '';
+      $('modalConditions').textContent = '条件: ' + hotelLabel + ' / ' + styleLabel + drinkLabel;
+    }
+
+    function openSummaryModal() {
+      const m = $('summaryModal');
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+
+    function closeSummaryModal() {
+      const m = $('summaryModal');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+
+    async function downloadCardImage() {
+      const card = $('summaryCardContainer');
+      const cityList = $('modalCityList');
+      const actionBtns = $('modalActionButtons');
+      const closeBtn = card.querySelector('button[onclick="closeSummaryModal()"]');
+
+      const prev = {
+        closeDisplay: closeBtn?.style.display || '',
+        actionDisplay: actionBtns?.style.display || '',
+        listMaxHeight: cityList.style.maxHeight,
+        listOverflow: cityList.style.overflow
+      };
+
+      if (closeBtn) closeBtn.style.display = 'none';
+      if (actionBtns) actionBtns.style.display = 'none';
+      cityList.style.maxHeight = 'none';
+      cityList.style.overflow = 'visible';
+
+      try {
+        // 展開後のレイアウトを確定させてから、カード全体を画像化する
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const canvas = await html2canvas(card, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          width: card.scrollWidth,
+          height: card.scrollHeight
+        });
+        const link = document.createElement('a');
+        link.download = 'oshikatsu-estimate.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        showToast('カード画像をダウンロードしました！');
+      } catch (e) {
+        showToast('画像の保存に失敗しました');
+      } finally {
+        if (closeBtn) closeBtn.style.display = prev.closeDisplay;
+        if (actionBtns) actionBtns.style.display = prev.actionDisplay;
+        cityList.style.maxHeight = prev.listMaxHeight;
+        cityList.style.overflow = prev.listOverflow;
+      }
+    }
+
+    function showToast(msg) {
+      const t = $('toast');
+      $('toastMsg').textContent = msg;
+      t.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        t.classList.add('translate-y-20', 'opacity-0');
+      }, 2600);
+    }
+
+    function buildShareText() {
+      const title = $('tourTitle').value.trim() || '推し活 遠征プラン';
+      const badge = $('summaryBadge').textContent;
+      const grand = $('grandTotalDisplay').textContent;
+      const trans = $('transportTotalDisplay').textContent;
+      const hotel = $('hotelTotalDisplay').textContent;
+      const tick  = $('ticketTotalDisplay').textContent;
+
+      let text = '【' + title + ' 遠征費試算】\n' +
+                 '📍 ' + badge + '\n' +
+                 '💰 総額：' + grand + '\n' +
+                 '（交通費 ' + trans + ' / 宿泊費 ' + hotel + ' / チケット ' + tick + '）\n';
+
+      if (state.enableSaving) {
+        const months = $('savingMonths').value;
+        const monthly = $('monthlySavingDisplay').textContent;
+        text += '🐷 ' + months + 'ヶ月貯金なら：' + monthly + '\n';
+      }
+
+      text += '#推し活遠征シミュレーター';
+
+      if (location.protocol.startsWith('http')) {
+        text += '\n' + location.origin + location.pathname;
+      }
+      return text;
+    }
+
+    function copyShareText() {
+      const text = buildShareText();
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('SNS共有用のテキストをコピーしました！');
+      });
+    }
+
+    function shareOnX() {
+      const text = buildShareText();
+      const intentUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text);
+      window.open(intentUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    const URL_STATE_PARAMS = { origin: 'o', transportMode: 'm', bookingStyle: 's', hotelGrade: 'g' };
+    const URL_INPUT_PARAMS = { ticketPrice: 't', savingMonths: 'sm', tourTitle: 'title', goodsBudget: 'goods', foodPerTrip: 'food' };
+
+    function copyShareUrl() {
+      const params = new URLSearchParams();
+      Object.entries(URL_STATE_PARAMS).forEach(([key, param]) => { if (state[key]) params.set(param, state[key]); });
+      if (state.selectedCities.size) params.set('c', [...state.selectedCities].join(','));
+      [['enableStay','stay'], ['includeDrink','d'], ['enableSaving','sav']].forEach(([key, param]) => { if (state[key]) params.set(param, '1'); });
+      if (state.themeColor !== '#8b5cf6') params.set('col', state.themeColor);
+      Object.entries(URL_INPUT_PARAMS).forEach(([id, param]) => {
+        const value = $(id).value.trim?.() ?? $(id).value;
+        if (value && !(id === 'savingMonths' && value === '6')) params.set(param, value);
+      });
+      if (Object.keys(state.overrides).length) params.set('ov', JSON.stringify(state.overrides));
+      const query = params.toString();
+      navigator.clipboard.writeText(location.origin + location.pathname + (query ? '?' + query : '')).then(() => showToast('現在の設定URLをコピーしました！'));
+    }
+
+    function loadFromUrlParams() {
+      const params = new URLSearchParams(location.search);
+      const lightMap = { '#10b981': '#d1fae5', '#06b6d4': '#cffafe', '#3b82f6': '#dbeafe', '#8b5cf6': '#f3e8ff', '#ec4899': '#fce7f3', '#ef4444': '#fee2e2', '#f97316': '#ffedd5', '#eab308': '#fef9c3' };
+
+      // URL復元中は recalc() を挟まず、全設定を読み込んでから最後にまとめて反映する
+      const origin = params.get('o');
+      if (params.has('o') && (ORIGINS[origin] || origin === '')) {
+        state.origin = origin;
+        $('originSelect').value = origin;
+      }
+
+      if (params.get('c')) {
+        state.selectedCities = new Set(params.get('c').split(',').filter(id => CITIES.some(c => c.id === id)));
+      }
+
+      state.transportMode = params.get('m') || '';
+      state.bookingStyle = params.get('s') || '';
+      state.hotelGrade = params.get('g') || '';
+      state.enableStay = params.get('stay') === '1';
+      state.includeDrink = params.get('d') === '1';
+      state.enableSaving = params.get('sav') === '1';
+
+      if (state.enableStay && !state.hotelGrade) state.hotelGrade = 'business';
+
+      $('enableStayToggle').checked = state.enableStay;
+      $('drinkFeeToggle').checked = state.includeDrink;
+      $('enableSavingToggle').checked = state.enableSaving;
+      $('savingSection').classList.toggle('hidden', !state.enableSaving);
+      $('hotelGradeSection').classList.toggle('opacity-40', !state.enableStay);
+      $('hotelGradeSection').classList.toggle('pointer-events-none', !state.enableStay);
+
+      [
+        ['transportModeGroup', 'mode', state.transportMode],
+        ['bookingStyleGroup', 'style', state.bookingStyle],
+        ['hotelGradeGroup', 'grade', state.hotelGrade]
+      ].forEach(([groupId, dataKey, value]) => {
+        document.querySelectorAll(`#${groupId} .option-card`).forEach(el =>
+          el.classList.toggle('active', !!value && el.dataset[dataKey] === value)
+        );
+      });
+
+      Object.entries(URL_INPUT_PARAMS).forEach(([id, param]) => {
+        if (params.get(param) != null) $(id).value = params.get(param);
+      });
+
+      if (params.get('ov')) {
+        try { state.overrides = JSON.parse(params.get('ov')); } catch {}
+      }
+
+      const color = params.get('col');
+      if (color) setTheme(color, lightMap[color] || '#f3e8ff', false);
+    }
+  </script>
+</body>
+</html>
