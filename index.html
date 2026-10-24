@@ -55,6 +55,17 @@
     input[type="range"] {
       accent-color: var(--theme-color);
     }
+
+    /* スマホ等での横スクロール時に「公演都市」列を左端に固定 */
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background-color: #ffffff;
+    }
+    tr:hover .sticky-col {
+      background-color: #f8fafc;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -95,7 +106,7 @@
     <!-- Left Column: Settings -->
     <div class="lg:col-span-5 space-y-5">
 
-      <!-- 0. 推しカラー選択（緑〜青系〜紫系〜赤系〜オレンジ系〜黄色系） -->
+      <!-- 0. 推しカラー設定 -->
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-2.5">
           <i class="fa-solid fa-palette theme-text"></i>
@@ -129,7 +140,6 @@
             <input type="text" id="tourTitle" value="" oninput="recalc()" placeholder="例：LIVE TOUR 2027" class="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:border-transparent" style="--tw-ring-color: var(--theme-color);">
           </div>
 
-          <!-- 出発地とチケット代の高さを完全に揃えるグリッド -->
           <div class="grid grid-cols-2 gap-3 items-end">
             <div class="flex flex-col justify-end">
               <div class="flex items-center justify-between mb-1">
@@ -162,7 +172,6 @@
             </div>
           </div>
 
-          <!-- ワンドリンク代トグル（改行対応・推しカラー連動） -->
           <div class="pt-1">
             <label class="inline-flex items-center cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 w-full">
               <input type="checkbox" id="drinkFeeToggle" onchange="onDrinkToggle()" class="sr-only peer theme-toggle">
@@ -381,6 +390,12 @@
     <!-- Right Column: Results & Breakdown -->
     <div class="lg:col-span-7 space-y-6">
 
+      <!-- 出発地未選択時のガイドアラート -->
+      <div id="originWarningAlert" class="hidden bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-2xl text-xs flex items-center gap-2.5">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-sm shrink-0"></i>
+        <span><strong>出発地が未選択です</strong>：「1. 基本情報」から出発地を選ぶと、各都市への交通費が自動計算されます。</span>
+      </div>
+
       <!-- Summary KPI Cards + 貯金計画バー -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
         <div class="flex flex-wrap items-baseline justify-between gap-2 pb-4 mb-4 border-b border-slate-100">
@@ -509,16 +524,16 @@
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-200">
-                <th class="py-2.5 px-3 whitespace-nowrap">公演都市</th>
+                <th class="py-2.5 px-3 whitespace-nowrap sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">公演都市</th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap" title="1公演あたりのチケット単価（個別変更可）">チケット単価</th>
                 <th class="py-2.5 px-2 whitespace-nowrap">移動手段</th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap">公演数</th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap">泊数</th>
                 <th class="py-2.5 px-2 text-center whitespace-nowrap" title="GW・お盆・年末年始等の高騰を反映">繁忙期</th>
+                <th class="py-2.5 px-2.5 text-right whitespace-nowrap" title="公演数×(チケット単価＋ワンドリンク代)の計算結果">チケット代</th>
                 <th class="py-2.5 px-2.5 text-right whitespace-nowrap">往復交通費</th>
                 <th class="py-2.5 px-2.5 text-right whitespace-nowrap">宿泊費</th>
-                <th class="py-2.5 px-2.5 text-right whitespace-nowrap" title="公演数×(チケット単価＋ワンドリンク代)の計算結果">チケット代</th>
-                <th class="py-2.5 px-3 text-right whitespace-nowrap" title="往復交通費＋宿泊費＋チケット代の合計">小計</th>
+                <th class="py-2.5 px-3 text-right whitespace-nowrap" title="チケット代＋往復交通費＋宿泊費の合計">小計</th>
               </tr>
             </thead>
             <tbody id="cityTableBody" class="divide-y divide-slate-100 text-xs">
@@ -527,18 +542,18 @@
             <tfoot id="cityTableFoot" class="bg-slate-50/90 border-t-2 border-slate-200 text-xs hidden">
               <!-- Row 1: 都市別費用の小計 -->
               <tr class="border-b border-slate-200/70">
-                <td colspan="6" class="py-2.5 px-3 font-bold text-slate-700">
+                <td colspan="6" class="py-2.5 px-3 font-bold text-slate-700 sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] bg-slate-50">
                   都市別費用の小計
-                  <span class="text-[10px] font-normal text-slate-500 ml-1.5">（全都市の交通費・宿泊費・チケット代）</span>
+                  <span class="text-[10px] font-normal text-slate-500 ml-1.5">（全都市のチケット代・交通費・宿泊費）</span>
                 </td>
+                <td id="footTicketSum" class="py-2.5 px-2.5 text-right font-semibold text-pink-600 whitespace-nowrap">¥0</td>
                 <td id="footTransportSum" class="py-2.5 px-2.5 text-right font-semibold text-blue-600 whitespace-nowrap">¥0</td>
                 <td id="footHotelSum" class="py-2.5 px-2.5 text-right font-semibold text-amber-600 whitespace-nowrap">¥0</td>
-                <td id="footTicketSum" class="py-2.5 px-2.5 text-right font-semibold text-pink-600 whitespace-nowrap">¥0</td>
                 <td id="footCitySubtotal" class="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">¥0</td>
               </tr>
               <!-- Row 2: 雑費 -->
               <tr class="border-b border-slate-200/70">
-                <td colspan="9" class="py-2.5 px-3 font-bold text-slate-700">
+                <td colspan="9" class="py-2.5 px-3 font-bold text-slate-700 sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] bg-slate-50">
                   雑費
                   <span id="footExtraDetail" class="text-[10px] font-normal text-slate-500 ml-1.5">（グッズ代・現地食費の合計）</span>
                 </td>
@@ -546,7 +561,7 @@
               </tr>
               <!-- Row 3: 合計 -->
               <tr class="theme-light-bg">
-                <td colspan="9" class="py-3 px-3 font-black text-slate-800 text-sm">
+                <td colspan="9" class="py-3 px-3 font-black text-slate-800 text-sm sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] bg-[#f3e8ff]">
                   合計
                   <span class="text-[11px] font-normal text-slate-600 ml-1.5">（都市別費用の小計 ＋ 雑費）</span>
                 </td>
@@ -618,10 +633,11 @@
 
         <div class="space-y-1 text-[11px] text-slate-400 pt-0.5">
           <div id="modalConditions" class="w-full truncate">条件: 未設定</div>
-          <div class="w-full text-right font-medium text-slate-400">by moco | #推し活遠征シミュレーター</div>
+          <div class="text-right font-medium text-slate-400">by moco | #推し活遠征シミュレーター</div>
         </div>
 
-        <div class="pt-1 flex gap-2">
+        <!-- キャプチャ時に非表示にするボタンコンテナ -->
+        <div id="modalActionButtons" class="pt-1 flex gap-2">
           <button onclick="shareOnX()" class="flex-1 bg-slate-900 hover:bg-black text-white text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
             <i class="fa-brands fa-x-twitter text-sm"></i>
             <span>ポスト</span>
@@ -725,6 +741,8 @@
       includeDrink: false,
       enableSaving: false,
       hotelGrade: '',
+      themeColor: '#8b5cf6',
+      themeLight: '#f3e8ff',
       overrides: {}
     };
 
@@ -747,8 +765,11 @@
         includeDrink: false,
         enableSaving: false,
         hotelGrade: '',
+        themeColor: '#8b5cf6',
+        themeLight: '#f3e8ff',
         overrides: {}
       };
+      setTheme('#8b5cf6', '#f3e8ff');
       document.getElementById('tourTitle').value = '';
       document.getElementById('originSelect').value = '';
       document.getElementById('ticketPrice').value = '10000';
@@ -774,9 +795,13 @@
     }
 
     function setTheme(color, light) {
+      state.themeColor = color;
+      state.themeLight = light;
       document.documentElement.style.setProperty('--theme-color', color);
       document.documentElement.style.setProperty('--theme-light', light);
-      recalc();
+      if (barChart && pieChart) {
+        recalc();
+      }
     }
 
     function renderCityGrid() {
@@ -992,6 +1017,14 @@
     };
 
     function recalc() {
+      // 出発地未選択アラートの制御
+      const warningAlert = document.getElementById('originWarningAlert');
+      if (!state.origin && state.selectedCities.size > 0) {
+        warningAlert.classList.remove('hidden');
+      } else {
+        warningAlert.classList.add('hidden');
+      }
+
       const baseTicketUnit = Number(document.getElementById('ticketPrice').value) || 0;
       const drinkUnit = state.includeDrink ? DRINK_FEE_UNIT : 0;
 
@@ -1154,7 +1187,7 @@
         ).join('');
 
         tr.innerHTML =
-          '<td class="py-2.5 px-3 font-bold text-slate-800 whitespace-nowrap">' + r.city.name + '</td>' +
+          '<td class="py-2.5 px-3 font-bold text-slate-800 whitespace-nowrap sticky-col shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">' + r.city.name + '</td>' +
           '<td class="py-2.5 px-2 text-center">' +
             '<input type="number" value="' + r.cityTicketUnit + '" step="500" min="0" onchange="updateOverride(\'' + r.city.id + '\', \'ticketPrice\', Number(this.value))" class="w-20 border border-slate-200 rounded px-1.5 py-1 text-xs text-right bg-white">' +
           '</td>' +
@@ -1176,18 +1209,18 @@
           '<td class="py-2.5 px-2 text-center">' +
             '<input type="checkbox" ' + (r.isPeak ? 'checked' : '') + ' onchange="updateOverride(\'' + r.city.id + '\', \'peak\', this.checked)" class="w-4 h-4 rounded cursor-pointer accent-amber-500">' +
           '</td>' +
+          '<td class="py-2.5 px-2.5 text-right font-semibold text-pink-600 whitespace-nowrap">¥' + r.ticketCost.toLocaleString() + '</td>' +
           '<td class="py-2.5 px-2.5 text-right font-semibold text-blue-600 whitespace-nowrap">¥' + r.transportCost.toLocaleString() + '</td>' +
           '<td class="py-2.5 px-2.5 text-right font-semibold text-amber-600 whitespace-nowrap">¥' + r.hotelCost.toLocaleString() + '</td>' +
-          '<td class="py-2.5 px-2.5 text-right font-semibold text-pink-600 whitespace-nowrap">¥' + r.ticketCost.toLocaleString() + '</td>' +
           '<td class="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">¥' + r.subtotal.toLocaleString() + '</td>';
 
         tbody.appendChild(tr);
       });
 
       // フッター3行の集計反映
+      document.getElementById('footTicketSum').textContent = '¥' + totalTickets.toLocaleString();
       document.getElementById('footTransportSum').textContent = '¥' + totalTransport.toLocaleString();
       document.getElementById('footHotelSum').textContent = '¥' + totalHotel.toLocaleString();
-      document.getElementById('footTicketSum').textContent = '¥' + totalTickets.toLocaleString();
       document.getElementById('footCitySubtotal').textContent = '¥' + citySubtotalSum.toLocaleString();
 
       document.getElementById('footExtraDetail').textContent =
@@ -1217,73 +1250,84 @@
       containerEl.classList.remove('hidden');
       containerEl.classList.add('grid');
 
-      const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim() || '#8b5cf6';
-
       const labels = rowsData.map(r => r.city.name.replace(/\(.*\)/, ''));
       const transportData = rowsData.map(r => r.transportCost);
       const hotelData = rowsData.map(r => r.hotelCost);
       const ticketData = rowsData.map(r => r.ticketCost);
 
       const ctxBar = document.getElementById('cityBarChart').getContext('2d');
-      if (barChart) barChart.destroy();
-      barChart = new Chart(ctxBar, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            { label: '交通費', data: transportData, backgroundColor: '#3b82f6', borderRadius: 4 },
-            { label: '宿泊費', data: hotelData, backgroundColor: '#f59e0b', borderRadius: 4 },
-            { label: 'チケット代', data: ticketData, backgroundColor: themeColor, borderRadius: 4 }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { stacked: true, grid: { display: false } },
-            y: {
-              stacked: true,
-              ticks: { callback: v => '¥' + (v / 1000) + 'k' }
-            }
+      if (!barChart) {
+        barChart = new Chart(ctxBar, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: '交通費', data: transportData, backgroundColor: '#3b82f6', borderRadius: 4 },
+              { label: '宿泊費', data: hotelData, backgroundColor: '#f59e0b', borderRadius: 4 },
+              { label: 'チケット代', data: ticketData, backgroundColor: state.themeColor, borderRadius: 4 }
+            ]
           },
-          plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-            tooltip: {
-              callbacks: {
-                label: ctx => ctx.dataset.label + ': ¥' + ctx.parsed.y.toLocaleString()
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: {
+                stacked: true,
+                ticks: { callback: v => '¥' + (v / 1000) + 'k' }
+              }
+            },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ctx.dataset.label + ': ¥' + ctx.parsed.y.toLocaleString()
+                }
               }
             }
           }
-        }
-      });
+        });
+      } else {
+        barChart.data.labels = labels;
+        barChart.data.datasets[0].data = transportData;
+        barChart.data.datasets[1].data = hotelData;
+        barChart.data.datasets[2].data = ticketData;
+        barChart.data.datasets[2].backgroundColor = state.themeColor;
+        barChart.update('none');
+      }
 
       const ctxPie = document.getElementById('costPieChart').getContext('2d');
-      if (pieChart) pieChart.destroy();
-      pieChart = new Chart(ctxPie, {
-        type: 'doughnut',
-        data: {
-          labels: ['交通費', '宿泊費', 'チケット代', 'グッズ・他'],
-          datasets: [{
-            data: [totalTransport, totalHotel, totalTickets, totalExtra],
-            backgroundColor: ['#3b82f6', '#f59e0b', themeColor, '#10b981'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '62%',
-          plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
-            title: { display: true, text: '費目別内訳', font: { size: 11 } },
-            tooltip: {
-              callbacks: {
-                label: ctx => '¥' + ctx.parsed.toLocaleString()
+      if (!pieChart) {
+        pieChart = new Chart(ctxPie, {
+          type: 'doughnut',
+          data: {
+            labels: ['交通費', '宿泊費', 'チケット代', 'グッズ・他'],
+            datasets: [{
+              data: [totalTransport, totalHotel, totalTickets, totalExtra],
+              backgroundColor: ['#3b82f6', '#f59e0b', state.themeColor, '#10b981'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+              title: { display: true, text: '費目別内訳', font: { size: 11 } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => '¥' + ctx.parsed.toLocaleString()
+                }
               }
             }
           }
-        }
-      });
+        });
+      } else {
+        pieChart.data.datasets[0].data = [totalTransport, totalHotel, totalTickets, totalExtra];
+        pieChart.data.datasets[0].backgroundColor = ['#3b82f6', '#f59e0b', state.themeColor, '#10b981'];
+        pieChart.update('none');
+      }
     }
 
     function updateModalContent(title, originLabel, cityCount, totalShows, totalNights, grandTotal, transport, hotel, ticketOther, savingMonths, monthlySaving, rowsData) {
@@ -1341,11 +1385,14 @@
 
     function downloadCardImage() {
       const card = document.getElementById('summaryCardContainer');
+      const actionBtns = document.getElementById('modalActionButtons');
       const closeBtn = card.querySelector('button[onclick="closeSummaryModal()"]');
       if (closeBtn) closeBtn.style.display = 'none';
+      if (actionBtns) actionBtns.style.display = 'none';
 
       html2canvas(card, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
         if (closeBtn) closeBtn.style.display = 'flex';
+        if (actionBtns) actionBtns.style.display = 'flex';
         const link = document.createElement('a');
         link.download = 'oshikatsu-estimate.png';
         link.href = canvas.toDataURL('image/png');
@@ -1353,6 +1400,7 @@
         showToast('カード画像をダウンロードしました！');
       }).catch(() => {
         if (closeBtn) closeBtn.style.display = 'flex';
+        if (actionBtns) actionBtns.style.display = 'flex';
         showToast('画像の保存に失敗しました');
       });
     }
@@ -1416,10 +1464,23 @@
       if (state.includeDrink) params.set('d', '1');
       if (state.enableSaving) params.set('sav', '1');
       if (state.hotelGrade) params.set('g', state.hotelGrade);
+      if (state.themeColor !== '#8b5cf6') params.set('col', state.themeColor);
+      
       const tVal = document.getElementById('ticketPrice').value;
       if (tVal) params.set('t', tVal);
       const smVal = document.getElementById('savingMonths').value;
       if (smVal && smVal !== '6') params.set('sm', smVal);
+      const titleVal = document.getElementById('tourTitle').value.trim();
+      if (titleVal) params.set('title', titleVal);
+      const goodsVal = document.getElementById('goodsBudget').value;
+      if (goodsVal) params.set('goods', goodsVal);
+      const foodVal = document.getElementById('foodPerTrip').value;
+      if (foodVal) params.set('food', foodVal);
+
+      // 個別オーバーライドの保存
+      if (Object.keys(state.overrides).length > 0) {
+        params.set('ov', JSON.stringify(state.overrides));
+      }
 
       const query = params.toString();
       const url = query ? location.origin + location.pathname + '?' + query : location.origin + location.pathname;
@@ -1430,6 +1491,11 @@
 
     function loadFromUrlParams() {
       const params = new URLSearchParams(window.location.search);
+      if (params.get('col')) {
+        const c = params.get('col');
+        const lightMap = { '#10b981': '#d1fae5', '#06b6d4': '#cffafe', '#3b82f6': '#dbeafe', '#8b5cf6': '#f3e8ff', '#ec4899': '#fce7f3', '#ef4444': '#fee2e2', '#f97316': '#ffedd5', '#eab308': '#fef9c3' };
+        setTheme(c, lightMap[c] || '#f3e8ff');
+      }
       if (params.get('o') && ORIGINS[params.get('o')]) {
         state.origin = params.get('o');
         document.getElementById('originSelect').value = state.origin;
@@ -1456,6 +1522,14 @@
       if (params.get('g')) setHotelGrade(params.get('g'));
       if (params.get('t')) document.getElementById('ticketPrice').value = params.get('t');
       if (params.get('sm')) document.getElementById('savingMonths').value = params.get('sm');
+      if (params.get('title')) document.getElementById('tourTitle').value = params.get('title');
+      if (params.get('goods')) document.getElementById('goodsBudget').value = params.get('goods');
+      if (params.get('food')) document.getElementById('foodPerTrip').value = params.get('food');
+      if (params.get('ov')) {
+        try {
+          state.overrides = JSON.parse(params.get('ov'));
+        } catch(e) {}
+      }
     }
   </script>
 </body>
